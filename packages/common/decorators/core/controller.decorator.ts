@@ -2,6 +2,7 @@ import {
   HOST_METADATA,
   PATH_METADATA,
   SCOPE_OPTIONS_METADATA,
+  VERSION_METADATA,
 } from '../../constants';
 import { isString, isUndefined } from '../../utils/shared.utils';
 import { ScopeOptions } from '../../interfaces/scope-options.interface';
@@ -28,6 +29,8 @@ export interface ControllerOptions extends ScopeOptions {
    * @see [Routing](https://docs.nestjs.com/controllers#routing)
    */
   host?: string;
+
+  version?: string;
 }
 
 /**
@@ -140,19 +143,21 @@ export function Controller(
   prefixOrOptions?: string | ControllerOptions,
 ): ClassDecorator {
   const defaultPath = '/';
-  const [path, host, scopeOptions] = isUndefined(prefixOrOptions)
-    ? [defaultPath, undefined, undefined]
+  const [path, host, scopeOptions, version] = isUndefined(prefixOrOptions)
+    ? [defaultPath, undefined, undefined, undefined]
     : isString(prefixOrOptions)
-    ? [prefixOrOptions, undefined, undefined]
+    ? [prefixOrOptions, undefined, undefined, undefined]
     : [
         prefixOrOptions.path || defaultPath,
         prefixOrOptions.host,
         { scope: prefixOrOptions.scope },
+        prefixOrOptions.version,
       ];
 
   return (target: object) => {
     Reflect.defineMetadata(PATH_METADATA, path, target);
     Reflect.defineMetadata(HOST_METADATA, host, target);
     Reflect.defineMetadata(SCOPE_OPTIONS_METADATA, scopeOptions, target);
+    Reflect.defineMetadata(VERSION_METADATA, version, target);
   };
 }
