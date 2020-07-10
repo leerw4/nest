@@ -8,6 +8,12 @@ export const MODULE_INIT_MESSAGE = (
 export const ROUTE_MAPPED_MESSAGE = (path: string, method: string | number) =>
   `Mapped {${path}, ${RequestMethod[method]}} route`;
 
+export const VERSIONED_ROUTE_MAPPED_MESSAGE = (
+  path: string,
+  version: string,
+  method: string | number,
+) => `Mapped {${path}, ${RequestMethod[method]}}(Version: ${version}) route`;
+
 export const CONTROLLER_MAPPING_MESSAGE = (name: string, path: string) =>
   `${name} {${path}}:`;
 

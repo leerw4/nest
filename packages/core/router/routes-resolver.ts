@@ -1,5 +1,9 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { HOST_METADATA, MODULE_PATH } from '@nestjs/common/constants';
+import {
+  HOST_METADATA,
+  MODULE_PATH,
+  VERSION_METADATA,
+} from '@nestjs/common/constants';
 import { HttpServer, Type } from '@nestjs/common/interfaces';
 import { Controller } from '@nestjs/common/interfaces/controllers/controller.interface';
 import { Logger } from '@nestjs/common/services/logger.service';
@@ -56,10 +60,19 @@ export class RoutesResolver implements Resolver {
     basePath: string,
     applicationRef: HttpServer,
   ) {
+    const versionedRoutes: InstanceWrapper<Controller>[] = [];
+
     routes.forEach(instanceWrapper => {
       const { metatype } = instanceWrapper;
 
       const host = this.getHostMetadata(metatype);
+      const version = this.getVersionMetadata(metatype);
+
+      if (version) {
+        versionedRoutes.push(instanceWrapper);
+        return;
+      }
+
       const path = this.routerExplorer.extractRouterPath(
         metatype as Type<any>,
         basePath,
@@ -79,6 +92,13 @@ export class RoutesResolver implements Resolver {
         host,
       );
     });
+
+    this.routerExplorer.exploreVersioned(
+      versionedRoutes,
+      moduleName,
+      applicationRef,
+      basePath,
+    );
   }
 
   public registerNotFoundHandler() {
@@ -131,5 +151,11 @@ export class RoutesResolver implements Resolver {
     metatype: Type<unknown> | Function,
   ): string | undefined {
     return Reflect.getMetadata(HOST_METADATA, metatype);
+  }
+
+  private getVersionMetadata(
+    metatype: Type<unknown> | Function,
+  ): string | undefined {
+    return Reflect.getMetadata(VERSION_METADATA, metatype);
   }
 }

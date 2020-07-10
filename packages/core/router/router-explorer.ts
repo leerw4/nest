@@ -1,5 +1,10 @@
 import { HttpServer } from '@nestjs/common';
-import { METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants';
+import {
+  METHOD_METADATA,
+  PATH_METADATA,
+  VERSION_METADATA,
+  HOST_METADATA,
+} from '@nestjs/common/constants';
 import { RequestMethod } from '@nestjs/common/enums/request-method.enum';
 import { InternalServerErrorException } from '@nestjs/common/exceptions';
 import { Controller } from '@nestjs/common/interfaces/controllers/controller.interface';
@@ -17,7 +22,10 @@ import { GuardsConsumer } from '../guards/guards-consumer';
 import { GuardsContextCreator } from '../guards/guards-context-creator';
 import { ContextIdFactory } from '../helpers/context-id-factory';
 import { ExecutionContextHost } from '../helpers/execution-context-host';
-import { ROUTE_MAPPED_MESSAGE } from '../helpers/messages';
+import {
+  ROUTE_MAPPED_MESSAGE,
+  VERSIONED_ROUTE_MAPPED_MESSAGE,
+} from '../helpers/messages';
 import { RouterMethodFactory } from '../helpers/router-method-factory';
 import { STATIC_CONTEXT } from '../injector/constants';
 import { NestContainer } from '../injector/container';
@@ -40,6 +48,13 @@ export interface RoutePathProperties {
   requestMethod: RequestMethod;
   targetCallback: RouterProxyCallback;
   methodName: string;
+}
+
+export interface VersionedPathProperties {
+  version: string;
+  host: string;
+  instanceWrapper: InstanceWrapper;
+  pathProperties: RoutePathProperties;
 }
 
 export class RouterExplorer {
@@ -84,6 +99,46 @@ export class RouterExplorer {
       module,
       basePath,
       host,
+    );
+  }
+
+  public exploreVersioned<T extends HttpServer = any>(
+    instanceWrappers: InstanceWrapper<Controller>[],
+    module: string,
+    applicationRef: T,
+    basePath: string,
+  ) {
+    const versionedPaths = new Map<string, VersionedPathProperties[]>();
+
+    instanceWrappers.forEach(instanceWrapper => {
+      const { instance } = instanceWrapper;
+      const { metatype } = instanceWrapper;
+      const version = Reflect.getMetadata(VERSION_METADATA, metatype);
+      const host = Reflect.getMetadata(HOST_METADATA, metatype);
+
+      const routerPaths = this.scanForPaths(instance);
+      routerPaths.forEach(routerPath => {
+        routerPath.path.forEach(path => {
+          // Ensure array value is there
+          if (!versionedPaths.has(path)) {
+            versionedPaths.set(path, []);
+          }
+
+          versionedPaths.get(path).push({
+            version,
+            host,
+            instanceWrapper,
+            pathProperties: routerPath,
+          });
+        });
+      });
+    });
+
+    this.applyVersionedPathsToRouterProxy(
+      applicationRef,
+      versionedPaths,
+      module,
+      basePath,
     );
   }
 
@@ -169,6 +224,31 @@ export class RouterExplorer {
     });
   }
 
+  public applyVersionedPathsToRouterProxy<T extends HttpServer>(
+    router: T,
+    versionedPaths: Map<string, VersionedPathProperties[]>,
+    moduleKey: string,
+    basePath: string,
+  ) {
+    this.applyVersionedCallbackToRouter(
+      router,
+      versionedPaths,
+      moduleKey,
+      basePath,
+    );
+
+    versionedPaths.forEach((versionProperties, path) => {
+      const pathStr = this.stripEndSlash(basePath) + this.stripEndSlash(path);
+      versionProperties.forEach(versionProperty => {
+        const { version } = versionProperty;
+        const { requestMethod } = versionProperty.pathProperties;
+        this.logger.log(
+          VERSIONED_ROUTE_MAPPED_MESSAGE(pathStr, version, requestMethod),
+        );
+      });
+    });
+  }
+
   public stripEndSlash(str: string) {
     return str[str.length - 1] === '/' ? str.slice(0, str.length - 1) : str;
   }
@@ -216,6 +296,61 @@ export class RouterExplorer {
     });
   }
 
+  private applyVersionedCallbackToRouter<T extends HttpServer>(
+    router: T,
+    versionedPaths: Map<string, VersionedPathProperties[]>,
+    moduleKey: string,
+    basePath: string,
+  ) {
+    versionedPaths.forEach((versionProperties, path) => {
+      const { requestMethod } = versionProperties[0].pathProperties;
+      const routerMethod = this.routerMethodFactory
+        .get(router, requestMethod)
+        .bind(router);
+
+      const proxies = new Map<string, Function>();
+
+      versionProperties.forEach(versionProperty => {
+        const { instanceWrapper, version, host } = versionProperty;
+        const { instance } = instanceWrapper;
+        const {
+          targetCallback,
+          methodName,
+          requestMethod,
+        } = versionProperty.pathProperties;
+
+        const isRequestScoped = !instanceWrapper.isDependencyTreeStatic();
+
+        const proxy = isRequestScoped
+          ? this.createRequestScopedHandler(
+              instanceWrapper,
+              requestMethod,
+              this.container.getModuleByKey(moduleKey),
+              moduleKey,
+              methodName,
+            )
+          : this.createCallbackProxy(
+              instance,
+              targetCallback,
+              methodName,
+              moduleKey,
+              requestMethod,
+            );
+        const hostHandler = this.applyHostFilter(host, proxy);
+
+        proxies.set(version, hostHandler);
+      });
+
+      const mappedVersions = versionProperties.map(
+        property => property.version,
+      );
+
+      const versionHandler = this.applyVersionFilter(mappedVersions, proxies);
+      const fullPath = this.stripEndSlash(basePath) + path;
+      routerMethod(this.stripEndSlash(fullPath) || '/', versionHandler);
+    });
+  }
+
   private applyHostFilter(host: string, handler: Function) {
     if (!host) {
       return handler;
@@ -242,6 +377,38 @@ export class RouterExplorer {
           `HTTP adapter does not support filtering on host: "${host}"`,
         );
       }
+      return next();
+    };
+  }
+
+  private applyVersionFilter(
+    versions: string[],
+    handlers: Map<string, Function>,
+  ) {
+    return <TRequest extends Record<string, any> = any, TResponse = any>(
+      req: TRequest,
+      res: TResponse,
+      next: () => void,
+    ) => {
+      let matchedVersion: string | null = null;
+      const acceptHeader: string = req.headers['accept'];
+
+      versions.forEach(version => {
+        if (acceptHeader.includes(version)) {
+          matchedVersion = version;
+        }
+      });
+
+      if (matchedVersion) {
+        return handlers.get(matchedVersion)(req, res, next);
+      }
+
+      if (!next) {
+        throw new InternalServerErrorException(
+          `HTTP adapter does not support filtering on version`,
+        );
+      }
+
       return next();
     };
   }
