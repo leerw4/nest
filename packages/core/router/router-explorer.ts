@@ -303,11 +303,6 @@ export class RouterExplorer {
     basePath: string,
   ) {
     versionedPaths.forEach((versionProperties, path) => {
-      const { requestMethod } = versionProperties[0].pathProperties;
-      const routerMethod = this.routerMethodFactory
-        .get(router, requestMethod)
-        .bind(router);
-
       const proxies = new Map<string, Function>();
 
       versionProperties.forEach(versionProperty => {
@@ -347,7 +342,14 @@ export class RouterExplorer {
 
       const versionHandler = this.applyVersionFilter(mappedVersions, proxies);
       const fullPath = this.stripEndSlash(basePath) + path;
-      routerMethod(this.stripEndSlash(fullPath) || '/', versionHandler);
+
+      versionProperties.forEach(versionProperty => {
+        const { requestMethod } = versionProperty.pathProperties;
+        const routerMethod = this.routerMethodFactory
+          .get(router, requestMethod)
+          .bind(router);
+        routerMethod(this.stripEndSlash(fullPath) || '/', versionHandler);
+      });
     });
   }
 
