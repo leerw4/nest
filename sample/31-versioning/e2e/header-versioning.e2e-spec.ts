@@ -278,6 +278,60 @@ describe('Versioning', () => {
     });
   });
 
+  describe('GET /semver', () => {
+    it('V 1.x', () => {
+      return request(app.getHttpServer())
+        .get('/semver')
+        .set({
+          'X-API-Version': '1.3.0',
+        })
+        .expect(200)
+        .expect('Semver 1.x!');
+    });
+
+    it('V 1.4.x', () => {
+      return request(app.getHttpServer())
+        .get('/semver')
+        .set({
+          'X-API-Version': '1.4.0',
+        })
+        .expect(200)
+        .expect('Semver 1.4.x!');
+    });
+
+    it('V 1.5.x', () => {
+      return request(app.getHttpServer())
+        .get('/semver')
+        .set({
+          'X-API-Version': '1.5.0',
+        })
+        .expect(200)
+        .expect('Semver 1.5.x!');
+    });
+
+    it('V3', () => {
+      return request(app.getHttpServer())
+        .get('/semver')
+        .set({
+          'X-API-Version': '3',
+        })
+        .expect(404);
+    });
+
+    it('No Version', () => {
+      return request(app.getHttpServer())
+        .get('/semver')
+        .set({
+          'X-API-Version': '',
+        })
+        .expect(404);
+    });
+
+    it('No Header', () => {
+      return request(app.getHttpServer()).get('/semver').expect(404);
+    });
+  });
+
   afterAll(async () => {
     await app.close();
   });

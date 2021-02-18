@@ -5,6 +5,7 @@ import { MultipleVersionController } from './multiple.controller';
 import { VersionNeutralController } from './neutral.controller';
 import { OverrideController } from './override.controller';
 import { OverridePartialController } from './override-partial.controller';
+import { SemverController } from './semver.controller';
 
 @Module({
   imports: [],
@@ -15,6 +16,7 @@ import { OverridePartialController } from './override-partial.controller';
     VersionNeutralController,
     OverrideController,
     OverridePartialController,
+    SemverController,
   ],
 })
 export class AppModule {}

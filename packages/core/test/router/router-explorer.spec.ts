@@ -580,6 +580,29 @@ describe('RouterExplorer', () => {
 
           expect(handler.calledWith(req, res, next)).to.be.true;
         });
+
+        it('should return the handler if the version in the Media Type header satisfies the the handler semver', () => {
+          const version = ['1.x'];
+          const versioningOptions: VersioningOptions = {
+            type: VersioningType.MEDIA_TYPE,
+            key: 'v=',
+          };
+          const handler = sinon.stub();
+
+          const versionFilter = (routerBuilder as any).applyVersionFilter(
+            version,
+            versioningOptions,
+            handler,
+          );
+
+          const req = { headers: { accept: 'application/json;v=1.1.1' } };
+          const res = {};
+          const next = sinon.stub();
+
+          versionFilter(req, res, next);
+
+          expect(handler.calledWith(req, res, next)).to.be.true;
+        });
       });
 
       describe('when the handler version is a string', () => {
@@ -621,6 +644,29 @@ describe('RouterExplorer', () => {
           );
 
           const req = { headers: { accept: 'application/json;v=1' } };
+          const res = {};
+          const next = sinon.stub();
+
+          versionFilter(req, res, next);
+
+          expect(handler.calledWith(req, res, next)).to.be.true;
+        });
+
+        it('should return the handler if the version in the Media Type header satisfies the handler semver', () => {
+          const version = '1.x';
+          const versioningOptions: VersioningOptions = {
+            type: VersioningType.MEDIA_TYPE,
+            key: 'v=',
+          };
+          const handler = sinon.stub();
+
+          const versionFilter = (routerBuilder as any).applyVersionFilter(
+            version,
+            versioningOptions,
+            handler,
+          );
+
+          const req = { headers: { accept: 'application/json;v=1.1.1' } };
           const res = {};
           const next = sinon.stub();
 
@@ -724,6 +770,29 @@ describe('RouterExplorer', () => {
 
           expect(handler.calledWith(req, res, next)).to.be.true;
         });
+
+        it('should return the handler if the version in the Custom Header satisfies the handler semver', () => {
+          const version = ['1.x', '2.x'];
+          const versioningOptions: VersioningOptions = {
+            type: VersioningType.HEADER,
+            header: 'X-API-Version',
+          };
+          const handler = sinon.stub();
+
+          const versionFilter = (routerBuilder as any).applyVersionFilter(
+            version,
+            versioningOptions,
+            handler,
+          );
+
+          const req = { headers: { 'X-API-Version': '1.1.1' } };
+          const res = {};
+          const next = sinon.stub();
+
+          versionFilter(req, res, next);
+
+          expect(handler.calledWith(req, res, next)).to.be.true;
+        });
       });
 
       describe('when the handler version is a string', () => {
@@ -765,6 +834,29 @@ describe('RouterExplorer', () => {
           );
 
           const req = { headers: { 'X-API-Version': '1' } };
+          const res = {};
+          const next = sinon.stub();
+
+          versionFilter(req, res, next);
+
+          expect(handler.calledWith(req, res, next)).to.be.true;
+        });
+
+        it('should return the handler if the version in the Custom Header satisfies the handler semver', () => {
+          const version = '1.x';
+          const versioningOptions: VersioningOptions = {
+            type: VersioningType.HEADER,
+            header: 'X-API-Version',
+          };
+          const handler = sinon.stub();
+
+          const versionFilter = (routerBuilder as any).applyVersionFilter(
+            version,
+            versioningOptions,
+            handler,
+          );
+
+          const req = { headers: { 'X-API-Version': '1.1.1' } };
           const res = {};
           const next = sinon.stub();
 

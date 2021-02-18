@@ -147,6 +147,37 @@ describe('Versioning', () => {
     });
   });
 
+  describe.skip('GET /semver', () => {
+    it('V 1.x', () => {
+      return request(app.getHttpServer())
+        .get('/v1.3.0/semver')
+        .expect(200)
+        .expect('Semver 1.x!');
+    });
+
+    it('V 1.4.x', () => {
+      return request(app.getHttpServer())
+        .get('/v1.4.0/semver')
+        .expect(200)
+        .expect('Semver 1.4.x!');
+    });
+
+    it('V 1.5.x', () => {
+      return request(app.getHttpServer())
+        .get('/v1.5.0/semver')
+        .expect(200)
+        .expect('Semver 1.5.x!');
+    });
+
+    it('V3', () => {
+      return request(app.getHttpServer()).get('/v3/semver').expect(404);
+    });
+
+    it('No Version', () => {
+      return request(app.getHttpServer()).get('/semver').expect(404);
+    });
+  });
+
   afterAll(async () => {
     await app.close();
   });

@@ -21,6 +21,7 @@ import {
   isUndefined,
 } from '@nestjs/common/utils/shared.utils';
 import * as pathToRegexp from 'path-to-regexp';
+import * as semver from 'semver';
 import { ApplicationConfig } from '../application-config';
 import { UnknownRequestMappingException } from '../errors/exceptions/unknown-request-mapping.exception';
 import { GuardsConsumer } from '../guards/guards-consumer';
@@ -389,9 +390,13 @@ export class RouterExplorer {
           if (Array.isArray(version)) {
             if (version.includes(headerVersion)) {
               return handler(req, res, next);
+            } else if (version.find((v) => semver.satisfies(headerVersion, v))) {
+              return handler(req, res, next);
             }
           } else if (isString(version)) {
             if (version === headerVersion) {
+              return handler(req, res, next);
+            } else if (semver.satisfies(headerVersion, version)) {
               return handler(req, res, next);
             }
           }
@@ -407,9 +412,13 @@ export class RouterExplorer {
           if (Array.isArray(version)) {
             if (version.includes(customHeaderVersionParameter)) {
               return handler(req, res, next);
+            } else if (version.find((v) => semver.satisfies(customHeaderVersionParameter, v))) {
+              return handler(req, res, next);
             }
           } else if (isString(version)) {
             if (version === customHeaderVersionParameter) {
+              return handler(req, res, next);
+            } else if (semver.satisfies(customHeaderVersionParameter, version)) {
               return handler(req, res, next);
             }
           }

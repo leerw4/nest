@@ -15,7 +15,7 @@ export type VersionValue = string | string[] | typeof VERSION_NEUTRAL;
 export interface VersionOptions {
   /**
    * Specifies an optional API Version. When configured, methods
-   * withing the controller will only be routed if the request version
+   * within the controller will only be routed if the request version
    * matches the specified value.
    *
    * @see [Versioning](https://docs.nestjs.com/techniques/versioning)
